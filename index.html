@@ -3,107 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aries AI Interface (Groq)</title>
+    <title>Aries AI Chat</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         body {
-            background-color: #f4f6f9;
-            color: #333;
+            background-color: #121212;
+            color: #e0e0e0;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            overflow: hidden;
+        }
+        #chat-header {
+            background-color: #1f1f1f;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            color: #bb86fc; 
+            border-bottom: 1px solid #2d2d2d;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            z-index: 10;
         }
         #chat-container {
             flex: 1;
-            padding: 15px;
+            padding: 20px 15px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 15px;
+            background: linear-gradient(135deg, #121212 0%, #1c1c1e 100%);
         }
         .message {
-            max-width: 85%;
-            padding: 10px 14px;
-            border-radius: 16px;
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 20px;
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.5;
             word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .user {
-            background-color: #a3cfbb;
-            color: #0f5132;
+            background: linear-gradient(135deg, #6200ee 0%, #7c4dff 100%);
+            color: #ffffff;
             align-self: flex-end;
             border-bottom-right-radius: 4px;
         }
         .ai {
-            background-color: #ffffff;
-            color: #212529;
+            background-color: #2c2c2c;
+            color: #f5f5f5;
             align-self: flex-start;
             border-bottom-left-radius: 4px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            border: 1px solid #3d3d3d;
         }
         .system-error {
-            background-color: #f8d7da;
-            color: #842029;
+            background-color: #cf6679;
+            color: #000000;
             align-self: center;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 12px;
             text-align: center;
-            padding: 8px;
+            padding: 8px 16px;
+            font-weight: bold;
         }
-        .loading {
+        .loading-container {
             align-self: flex-start;
-            color: #6c757d;
-            font-style: italic;
-            font-size: 13px;
-            padding-left: 5px;
+            background-color: #2c2c2c;
+            padding: 12px 16px;
+            border-radius: 20px;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #3d3d3d;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .dot {
+            width: 6px;
+            height: 6px;
+            background-color: #bb86fc;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
         }
     </style>
 </head>
 <body>
 
+    <div id="chat-header">🔮 ARIES AI CHAT</div>
+
     <div id="chat-container">
-        <!-- Chat bubbles akan muncul di sini -->
+        <!-- Chat pertama sebagai sambutan -->
+        <div class="message ai">Halo bro! Gua Aries AI. Ada yang bisa gua bantu hari ini?</div>
     </div>
 
     <script>
-        // --- KONFIGURASI API GROQ ---
-        // Ganti dengan API Key Groq lu yang lama
+        // ==========================================
+        // 1. TARUH API KEY GROQ LU DI SINI (WAJIB!)
+        // ==========================================
         const GROQ_API_KEY = "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"; 
+        
         const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-        // Pakai model baru yang aktif biar gak error decommissioned lagi
         const MODEL_NAME = "llama-3.1-8b-instant"; 
-
         const chatContainer = document.getElementById('chat-container');
 
-        // Fungsi utama yang dipanggil dari Kodular lewat WebView.RunJavaScript
+        // ==========================================
+        // 2. SISTEM MEMORI / OTAK AI
+        // ==========================================
+        let chatHistory = [
+            { 
+                role: "system", 
+                content: "Kamu adalah Aries AI, asisten virtual pintar. Gunakan bahasa Indonesia sehari-hari yang santai (seperti 'gua', 'lu', 'bro'). Jawablah dengan ramah, asyik, tidak kaku, dan langsung ke intinya." 
+            }
+        ];
+
+        // ==========================================
+        // 3. FUNGSI UTAMA (DIPANGGIL DARI KODULAR)
+        // ==========================================
         function kirimPesanKeAI(pesanUser) {
             if (!pesanUser || pesanUser.trim() === "") return;
 
-            // 1. Tampilkan pesan user ke layar Web View
+            // Tampilkan pesan lu ke layar
             tampilkanBubble(pesanUser, 'user');
 
-            // 2. Tampilkan indikator loading
+            // Simpan pesan lu ke dalam otak AI
+            chatHistory.push({ role: "user", content: pesanUser });
+
+            // Tampilkan animasi loading berkedip
             const loadingId = 'loading-' + Date.now();
-            const loadingBubble = document.createElement('div');
-            loadingBubble.id = loadingId;
-            loadingBubble.className = 'loading';
-            loadingBubble.innerText = 'Aries (Groq) sedang mengetik...';
-            chatContainer.appendChild(loadingBubble);
+            const loadingContainer = document.createElement('div');
+            loadingContainer.id = loadingId;
+            loadingContainer.className = 'loading-container';
+            loadingContainer.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            chatContainer.appendChild(loadingContainer);
             scrollKeBawah();
 
-            // 3. Setup data payload sesuai format Groq / OpenAI
+            // Setup data untuk dikirim ke Groq (ngirim seluruh riwayat chat)
             const payload = {
                 model: MODEL_NAME,
-                messages: [{ role: "user", content: pesanUser }]
+                messages: chatHistory
             };
 
-            // 4. Tembak API Groq menggunakan Fetch
+            // Tembak server Groq
             fetch(GROQ_URL, {
                 method: 'POST',
                 headers: {
@@ -113,38 +168,40 @@
                 body: JSON.stringify(payload)
             })
             .then(response => {
-                // Hapus indikator loading
                 document.getElementById(loadingId)?.remove();
-                
                 if (!response.ok) {
-                    throw new Error('Gagal terhubung ke Groq. Status: ' + response.status);
+                    throw new Error('Gagal konek ke Groq. Status: ' + response.status);
                 }
                 return response.json();
             })
             .then(data => {
-                // 5. PARSING JSON SECARA BERSIH DAN INSTAN LEWAT JAVASCRIPT
+                // Ekstrak jawaban bersih dari server
                 if (data.choices && data.choices[0].message && data.choices[0].message.content) {
                     const jawabanAI = data.choices[0].message.content;
                     
-                    // Tampilkan jawaban bersih tanpa bungkusan rongsokan kode
+                    // Simpan jawaban AI ke dalam otak/memori
+                    chatHistory.push({ role: "assistant", content: jawabanAI });
+                    
+                    // Tampilkan di layar
                     tampilkanBubble(jawabanAI, 'ai');
                 } else {
-                    tampilkanBubble('Format balasan Groq tidak dikenali.', 'system-error');
+                    tampilkanBubble('Format data dari Groq tidak cocok.', 'system-error');
                 }
             })
             .catch(error => {
                 document.getElementById(loadingId)?.remove();
-                tampilkanBubble('Error: ' + error.message, 'system-error');
+                tampilkanBubble('Waduh Error: ' + error.message, 'system-error');
                 console.error(error);
             });
         }
 
-        // Fungsi pembantu membuat bubble chat
+        // ==========================================
+        // 4. FUNGSI BANTUAN (UI)
+        // ==========================================
         function tampilkanBubble(teks, tipe) {
             const bubble = document.createElement('div');
             bubble.className = `message ${tipe}`;
-            bubble.innerHTML = teks.replace(/
-/g, '<br>');
+            bubble.innerHTML = teks.replace(/\n/g, '<br>');
             chatContainer.appendChild(bubble);
             scrollKeBawah();
         }
