@@ -5,209 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aries AI Chat</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #121212; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+        
+        #chat-header { background: #1f1f1f; padding: 15px; text-align: center; color: #bb86fc; font-weight: bold; }
+        
+        #chat-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Input Area (Tombol & Textbox) */
+        #input-area { background: #1f1f1f; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #333; }
+        #user-input { flex: 1; padding: 10px; border-radius: 8px; border: none; background: #2c2c2c; color: white; }
+        #send-btn { padding: 10px 20px; border-radius: 8px; border: none; background: #6200ee; color: white; cursor: pointer; font-weight: bold; }
+        
+        /* Responsif HP/PC */
+        @media (min-width: 768px) {
+            body { max-width: 600px; margin: auto; border-left: 1px solid #333; border-right: 1px solid #333; }
         }
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #chat-header {
-            background-color: #1f1f1f;
-            padding: 15px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 16px;
-            color: #bb86fc; 
-            border-bottom: 1px solid #2d2d2d;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            z-index: 10;
-        }
-        #chat-container {
-            flex: 1;
-            padding: 20px 15px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background: linear-gradient(135deg, #121212 0%, #1c1c1e 100%);
-        }
-        .message {
-            max-width: 80%;
-            padding: 12px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            line-height: 1.5;
-            word-wrap: break-word;
-            animation: fadeIn 0.3s ease-in-out;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .user {
-            background: linear-gradient(135deg, #6200ee 0%, #7c4dff 100%);
-            color: #ffffff;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-        }
-        .ai {
-            background-color: #2c2c2c;
-            color: #f5f5f5;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            border: 1px solid #3d3d3d;
-        }
-        .system-error {
-            background-color: #cf6679;
-            color: #000000;
-            align-self: center;
-            border-radius: 10px;
-            font-size: 12px;
-            text-align: center;
-            padding: 8px 16px;
-            font-weight: bold;
-        }
-        .loading-container {
-            align-self: flex-start;
-            background-color: #2c2c2c;
-            padding: 12px 16px;
-            border-radius: 20px;
-            border-bottom-left-radius: 4px;
-            border: 1px solid #3d3d3d;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .dot {
-            width: 6px;
-            height: 6px;
-            background-color: #bb86fc;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-        .dot:nth-child(1) { animation-delay: -0.32s; }
-        .dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
-        }
+
+        .message { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 14px; }
+        .user { background: #6200ee; align-self: flex-end; }
+        .ai { background: #2c2c2c; align-self: flex-start; }
     </style>
 </head>
 <body>
 
     <div id="chat-header">🔮 ARIES AI CHAT</div>
-
     <div id="chat-container">
-        <!-- Chat pertama sebagai sambutan -->
-        <div class="message ai">Halo bro! Gua Aries AI. Ada yang bisa gua bantu hari ini?</div>
+        <div class="message ai">Halo bro! Apa yang bisa gua bantu hari ini?</div>
+    </div>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Ketik pesan di sini...">
+        <button id="send-btn" onclick="prosesChat()">Kirim</button>
     </div>
 
     <script>
-        // ==========================================
-        // 1. TARUH API KEY GROQ LU DI SINI (WAJIB!)
-        // ==========================================
-        const GROQ_API_KEY = "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"; 
-        
-        const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-        const MODEL_NAME = "llama-3.1-8b-instant"; 
-        const chatContainer = document.getElementById('chat-container');
+        const API_KEY = "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"; 
+        let chatHistory = [{ role: "system", content: "Kamu Aries AI, jawab santai pakai bahasa Indonesia." }];
 
-        // ==========================================
-        // 2. SISTEM MEMORI / OTAK AI
-        // ==========================================
-        let chatHistory = [
-            { 
-                role: "system", 
-                content: "Kamu adalah Aries AI, asisten virtual pintar. Gunakan bahasa Indonesia sehari-hari yang santai (seperti 'gua', 'lu', 'bro'). Jawablah dengan ramah, asyik, tidak kaku, dan langsung ke intinya." 
-            }
-        ];
+        function prosesChat() {
+            const input = document.getElementById('user-input');
+            const pesan = input.value;
+            if (!pesan.trim()) return;
 
-        // ==========================================
-        // 3. FUNGSI UTAMA (DIPANGGIL DARI KODULAR)
-        // ==========================================
-        function kirimPesanKeAI(pesanUser) {
-            if (!pesanUser || pesanUser.trim() === "") return;
+            // Tampilkan ke layar
+            const container = document.getElementById('chat-container');
+            container.innerHTML += `<div class="message user">${pesan}</div>`;
+            input.value = '';
 
-            // Tampilkan pesan lu ke layar
-            tampilkanBubble(pesanUser, 'user');
+            chatHistory.push({ role: "user", content: pesan });
 
-            // Simpan pesan lu ke dalam otak AI
-            chatHistory.push({ role: "user", content: pesanUser });
-
-            // Tampilkan animasi loading berkedip
-            const loadingId = 'loading-' + Date.now();
-            const loadingContainer = document.createElement('div');
-            loadingContainer.id = loadingId;
-            loadingContainer.className = 'loading-container';
-            loadingContainer.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-            chatContainer.appendChild(loadingContainer);
-            scrollKeBawah();
-
-            // Setup data untuk dikirim ke Groq (ngirim seluruh riwayat chat)
-            const payload = {
-                model: MODEL_NAME,
-                messages: chatHistory
-            };
-
-            // Tembak server Groq
-            fetch(GROQ_URL, {
+            fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${GROQ_API_KEY}`
-                },
-                body: JSON.stringify(payload)
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+                body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: chatHistory })
             })
-            .then(response => {
-                document.getElementById(loadingId)?.remove();
-                if (!response.ok) {
-                    throw new Error('Gagal konek ke Groq. Status: ' + response.status);
-                }
-                return response.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                // Ekstrak jawaban bersih dari server
-                if (data.choices && data.choices[0].message && data.choices[0].message.content) {
-                    const jawabanAI = data.choices[0].message.content;
-                    
-                    // Simpan jawaban AI ke dalam otak/memori
-                    chatHistory.push({ role: "assistant", content: jawabanAI });
-                    
-                    // Tampilkan di layar
-                    tampilkanBubble(jawabanAI, 'ai');
-                } else {
-                    tampilkanBubble('Format data dari Groq tidak cocok.', 'system-error');
-                }
-            })
-            .catch(error => {
-                document.getElementById(loadingId)?.remove();
-                tampilkanBubble('Waduh Error: ' + error.message, 'system-error');
-                console.error(error);
+                const jawaban = data.choices[0].message.content;
+                container.innerHTML += `<div class="message ai">${jawaban.replace(/\n/g, '<br>')}</div>`;
+                chatHistory.push({ role: "assistant", content: jawaban });
+                container.scrollTop = container.scrollHeight;
             });
-        }
-
-        // ==========================================
-        // 4. FUNGSI BANTUAN (UI)
-        // ==========================================
-        function tampilkanBubble(teks, tipe) {
-            const bubble = document.createElement('div');
-            bubble.className = `message ${tipe}`;
-            bubble.innerHTML = teks.replace(/\n/g, '<br>');
-            chatContainer.appendChild(bubble);
-            scrollKeBawah();
-        }
-
-        function scrollKeBawah() {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     </script>
 </body>
