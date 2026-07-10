@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aries AI Interface (Groq)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #chat-container {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: #a3cfbb;
+            color: #0f5132;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .ai {
+            background-color: #ffffff;
+            color: #212529;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .system-error {
+            background-color: #f8d7da;
+            color: #842029;
+            align-self: center;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
+            padding: 8px;
+        }
+        .loading {
+            align-self: flex-start;
+            color: #6c757d;
+            font-style: italic;
+            font-size: 13px;
+            padding-left: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <!-- Chat bubbles akan muncul di sini -->
+    </div>
+
+    <script>
+        // --- KONFIGURASI API GROQ ---
+        // Ganti dengan API Key Groq lu yang lama
+        const GROQ_API_KEY = "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"; 
+        const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+        // Pakai model baru yang aktif biar gak error decommissioned lagi
+        const MODEL_NAME = "llama-3.1-8b-instant"; 
+
+        const chatContainer = document.getElementById('chat-container');
+
+        // Fungsi utama yang dipanggil dari Kodular lewat WebView.RunJavaScript
+        function kirimPesanKeAI(pesanUser) {
+            if (!pesanUser || pesanUser.trim() === "") return;
+
+            // 1. Tampilkan pesan user ke layar Web View
+            tampilkanBubble(pesanUser, 'user');
+
+            // 2. Tampilkan indikator loading
+            const loadingId = 'loading-' + Date.now();
+            const loadingBubble = document.createElement('div');
+            loadingBubble.id = loadingId;
+            loadingBubble.className = 'loading';
+            loadingBubble.innerText = 'Aries (Groq) sedang mengetik...';
+            chatContainer.appendChild(loadingBubble);
+            scrollKeBawah();
+
+            // 3. Setup data payload sesuai format Groq / OpenAI
+            const payload = {
+                model: MODEL_NAME,
+                messages: [{ role: "user", content: pesanUser }]
+            };
+
+            // 4. Tembak API Groq menggunakan Fetch
+            fetch(GROQ_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${GROQ_API_KEY}`
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                // Hapus indikator loading
+                document.getElementById(loadingId)?.remove();
+                
+                if (!response.ok) {
+                    throw new Error('Gagal terhubung ke Groq. Status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 5. PARSING JSON SECARA BERSIH DAN INSTAN LEWAT JAVASCRIPT
+                if (data.choices && data.choices[0].message && data.choices[0].message.content) {
+                    const jawabanAI = data.choices[0].message.content;
+                    
+                    // Tampilkan jawaban bersih tanpa bungkusan rongsokan kode
+                    tampilkanBubble(jawabanAI, 'ai');
+                } else {
+                    tampilkanBubble('Format balasan Groq tidak dikenali.', 'system-error');
+                }
+            })
+            .catch(error => {
+                document.getElementById(loadingId)?.remove();
+                tampilkanBubble('Error: ' + error.message, 'system-error');
+                console.error(error);
+            });
+        }
+
+        // Fungsi pembantu membuat bubble chat
+        function tampilkanBubble(teks, tipe) {
+            const bubble = document.createElement('div');
+            bubble.className = `message ${tipe}`;
+            bubble.innerHTML = teks.replace(/
+/g, '<br>');
+            chatContainer.appendChild(bubble);
+            scrollKeBawah();
+        }
+
+        function scrollKeBawah() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>
